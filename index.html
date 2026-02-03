@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Quiz Bee Trainer</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg: #f3f4f6;
+            --surface: #ffffff;
+            --text: #1f2937;
+            --text-light: #6b7280;
+            --success: #10b981;
+            --danger: #ef4444;
+            --border: #e5e7eb;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Layout --- */
+        header {
+            background-color: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        h1 { margin: 0; font-size: 1.25rem; color: var(--primary); }
+
+        nav { display: flex; gap: 1rem; }
+        
+        button.tab-btn {
+            background: none;
+            border: none;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-light);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        button.tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        main {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .section { display: none; }
+        .section.active { display: block; animation: fadeIn 0.3s ease; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- Components --- */
+        .card {
+            background: var(--surface);
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-danger { background-color: var(--danger); }
+        .btn-danger:hover { background-color: #dc2626; }
+        .btn-success { background-color: var(--success); }
+        .btn-success:hover { background-color: #059669; }
+
+        label { display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.875rem; }
+        textarea, input[type="text"], select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            font-family: monospace;
+            box-sizing: border-box;
+        }
+        textarea { resize: vertical; min-height: 150px; }
+
+        /* --- Trainer UI --- */
+        .trainer-container { text-align: center; max-width: 600px; margin: 0 auto; }
+        
+        .timer-display {
+            font-size: 5rem;
+            font-weight: bold;
+            font-variant-numeric: tabular-nums;
+            color: var(--text);
+            margin: 1rem 0;
+            height: 100px; /* Prevent layout shift */
+        }
+
+        .question-box {
+            font-size: 1.5rem;
+            margin: 2rem 0;
+            min-height: 3rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 0.5rem;
+            border: 1px dashed var(--border);
+        }
+        
+        .answer-box {
+            font-size: 1.25rem;
+            color: var(--primary);
+            font-weight: bold;
+            margin-bottom: 2rem;
+            min-height: 2rem;
+        }
+
+        .blur-content {
+            filter: blur(8px);
+            user-select: none;
+            opacity: 0.5;
+        }
+
+        .controls-area {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        /* --- Stats Table --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: var(--surface);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .stat-value { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
+        .stat-label { font-size: 0.875rem; color: var(--text-light); }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+        th, td { text-align: left; padding: 0.75rem; border-bottom: 1px solid var(--border); }
+        th { background-color: #f9fafb; font-weight: 600; }
+        .status-correct { color: var(--success); font-weight: bold; }
+        .status-incorrect { color: var(--danger); font-weight: bold; }
+
+        /* Settings Range Sliders */
+        .slider-group { margin-bottom: 1rem; }
+        .slider-group div { display: flex; align-items: center; gap: 1rem; }
+        input[type="range"] { flex: 1; }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🧮 Quiz Bee Trainer</h1>
+    <nav>
+        <button class="tab-btn active" onclick="app.switchTab('setup')">Setup</button>
+        <button class="tab-btn" onclick="app.switchTab('trainer')">Trainer</button>
+        <button class="tab-btn" onclick="app.switchTab('stats')">Stats & Settings</button>
+    </nav>
+</header>
+
+<main>
+    <!-- SETUP TAB -->
+    <div id="tab-setup" class="section active">
+        <div class="card">
+            <h2>Data Input</h2>
+            <div style="background: #e0f2fe; border: 1px solid #bae6fd; color: #0369a1; padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem; font-size: 0.9rem;">
+                <strong>Tip:</strong> Paste your CSV below. First row must be headers.<br>
+                Expected Columns: <code>ID, Question, Answer, Asked, Result, Remarks</code><br>
+                <em>Note: "Asked" should be TRUE/FALSE. "Result" should be CORRECT/INCORRECT.</em>
+            </div>
+            <label>CSV Data</label>
+            <textarea id="csvInput" placeholder="ID, Question, Answer, Asked, Result, Remarks
+1, What is 2 + 2?, 4, FALSE,,
+2, &quot;What is 5,000 + 100?&quot;, 5100, FALSE,,"></textarea>
+            <div style="margin-top: 1rem; display: flex; justify-content: space-between;">
+                <button class="btn" onclick="app.loadData()">Load & Parse Data</button>
+                <button class="btn btn-danger" onclick="app.resetData()">Reset / Clear</button>
+            </div>
+            <p id="dataStatus" style="margin-top: 0.5rem; color: var(--text-light); font-size: 0.875rem;"></p>
+        </div>
+    </div>
+
+    <!-- TRAINER TAB -->
+    <div id="tab-trainer" class="section">
+        <div class="card trainer-container">
+            <div id="trainer-start-view">
+                <h3>Ready to Train?</h3>
+                <p>Ensure your audio volume is up.</p>
+                <button class="btn" style="font-size: 1.25rem; padding: 1rem 2rem;" onclick="app.startQuestion()">Start Question</button>
+            </div>
+
+            <div id="trainer-active-view" class="hidden">
+                <div class="timer-display" id="timer">40</div>
+                
+                <div class="question-box blur-content" id="question-display">
+                    [Question Hidden]
+                </div>
+                
+                <div class="answer-box blur-content" id="answer-display">
+                    [Answer Hidden]
+                </div>
+
+                <div id="phase-verification" class="hidden">
+                    <p>Did you get the correct answer?</p>
+                    <div class="controls-area">
+                        <button class="btn btn-success" onclick="app.handleResult('CORRECT')">YES (Correct)</button>
+                        <button class="btn btn-danger" onclick="app.handleResult('INCORRECT')">NO (Incorrect)</button>
+                    </div>
+                </div>
+
+                <div id="phase-remarks" class="hidden">
+                    <label>Add Remarks (Optional):</label>
+                    <input type="text" id="remarksInput" placeholder="e.g. careless error, calculation slow...">
+                    <div class="controls-area" style="margin-top: 1rem;">
+                        <button class="btn" onclick="app.saveAndNext()">Save & Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STATS & SETTINGS TAB -->
+    <div id="tab-stats" class="section">
+        <!-- Stats Dashboard -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-total">0</div>
+                <div class="stat-label">Total Questions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-answered">0</div>
+                <div class="stat-label">Answered</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-accuracy">0%</div>
+                <div class="stat-label">Accuracy</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-pending">0</div>
+                <div class="stat-label">Pending</div>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="card">
+            <h3>Audio Settings</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <div>
+                    <label>Voice</label>
+                    <select id="voiceSelect"></select>
+                    <div style="margin-top: 0.5rem;">
+                        <input type="checkbox" id="randomVoice">
+                        <label for="randomVoice" style="display:inline;">Randomize voice for every question</label>
+                    </div>
+                </div>
+                <div>
+                    <div class="slider-group">
+                        <label>Speed (Rate): <span id="rateVal">0.5</span></label>
+                        <div>
+                            <span>0.5</span>
+                            <!-- UPDATED: Min 0.5, Max 1.0, Default 0.5 -->
+                            <input type="range" min="0.5" max="1.0" step="0.1" value="0.5" id="rateRange" oninput="document.getElementById('rateVal').innerText = this.value">
+                            <span>1.0</span>
+                        </div>
+                    </div>
+                    <div class="slider-group">
+                        <label>Volume: <span id="volVal">1.0</span></label>
+                        <div>
+                            <span>0</span>
+                            <input type="range" min="0" max="1" step="0.1" value="1" id="volRange" oninput="document.getElementById('volVal').innerText = this.value">
+                            <span>1</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History & Export -->
+        <div class="card">
+            <h3>History & Data Export</h3>
+            <div style="max-height: 300px; overflow-y: auto; margin-bottom: 1rem; border: 1px solid var(--border);">
+                <table id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Question</th>
+                            <th>Answer</th>
+                            <th>Result</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <label>Current Data State (Copy to save progress)</label>
+            <textarea id="csvExport" readonly style="height: 100px; font-size: 0.8rem; background: #f9fafb;"></textarea>
+        </div>
+    </div>
+</main>
+
+<script>
+/**
+ * Math Quiz Bee Trainer Logic
+ */
+
+const app = {
+    data: [],
+    currentQuestionIndex: -1,
+    timerInterval: null,
+    audioCtx: null,
+    synth: window.speechSynthesis,
+    voices: [],
+    
+    // Default CSV for demo
+    defaultCSV: `ID,Question,Answer,Asked,Result,Remarks
+1,What is 15 + 15?,30,FALSE,,
+2,"What is 1,000 minus 500?",500,FALSE,,
+3,What is 12 x 12?,144,FALSE,,
+4,What is the square root of 81?,9,FALSE,,`,
+
+    init() {
+        // Load Voices
+        this.populateVoices();
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = this.populateVoices.bind(this);
+        }
+
+        // Set default text if empty
+        const inputEl = document.getElementById('csvInput');
+        if(!inputEl.value.trim()) inputEl.value = this.defaultCSV;
+
+        // Init Audio Context on first interaction to unlock browser policy
+        document.addEventListener('click', () => {
+            if (!this.audioCtx) {
+                this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }, { once: true });
+    },
+
+    // --- Navigation ---
+    switchTab(tabId) {
+        document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        
+        document.getElementById(`tab-${tabId}`).classList.add('active');
+        // Find the button with onclick matching the tabId
+        const btns = Array.from(document.querySelectorAll('.tab-btn'));
+        const activeBtn = btns.find(b => b.getAttribute('onclick').includes(tabId));
+        if(activeBtn) activeBtn.classList.add('active');
+
+        if(tabId === 'stats') this.updateStats();
+    },
+
+    // --- CSV Logic ---
+    loadData() {
+        const raw = document.getElementById('csvInput').value.trim();
+        if (!raw) return alert("Please enter CSV data.");
+
+        try {
+            this.data = this.parseCSV(raw);
+            const status = document.getElementById('dataStatus');
+            status.innerText = `Successfully loaded ${this.data.length} rows. ready to train.`;
+            status.style.color = 'var(--success)';
+            this.updateStats();
+            alert("Data Loaded Successfully!");
+        } catch (e) {
+            alert("Error parsing CSV: " + e.message);
+        }
+    },
+
+    resetData() {
+        if(confirm("Clear all data?")) {
+            document.getElementById('csvInput').value = '';
+            this.data = [];
+            this.updateStats();
+        }
+    },
+
+    // Robust CSV Parser that handles commas inside quotes
+    parseCSV(text) {
+        const lines = text.split(/\r?\n/);
+        const result = [];
+        // Skip header (index 0), start at 1
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            const row = [];
+            let currentVal = '';
+            let inQuotes = false;
+            
+            for (let j = 0; j < line.length; j++) {
+                const char = line[j];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    row.push(currentVal.trim());
+                    currentVal = '';
+                } else {
+                    currentVal += char;
+                }
+            }
+            row.push(currentVal.trim()); // Push last value
+
+            // Sanitize quotes around values
+            const cleanRow = row.map(val => val.replace(/^"|"$/g, '').replace(/""/g, '"'));
+
+            if (cleanRow.length < 3) continue; // Skip malformed
+
+            result.push({
+                id: cleanRow[0],
+                question: cleanRow[1],
+                answer: cleanRow[2],
+                asked: cleanRow[3]?.toUpperCase() === 'TRUE',
+                result: cleanRow[4] || '',
+                remarks: cleanRow[5] || ''
+            });
+        }
+        return result;
+    },
+
+    generateCSV() {
+        let csv = `ID,Question,Answer,Asked,Result,Remarks\n`;
+        this.data.forEach(row => {
+            // Escape quotes in values
+            const esc = (val) => {
+                if (val === null || val === undefined) return '';
+                const s = String(val);
+                if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+                    return `"${s.replace(/"/g, '""')}"`;
+                }
+                return s;
+            };
+            csv += `${esc(row.id)},${esc(row.question)},${esc(row.answer)},${esc(row.asked)},${esc(row.result)},${esc(row.remarks)}\n`;
+        });
+        return csv;
+    },
+
+    // --- Trainer Logic ---
+    startQuestion() {
+        if (this.data.length === 0) return alert("No data loaded. Please go to Setup.");
+
+        // Find next unasked question
+        this.currentQuestionIndex = this.data.findIndex(q => !q.asked);
+        
+        if (this.currentQuestionIndex === -1) {
+            return alert("All questions have been asked! Reset 'Asked' column in CSV or start over.");
+        }
+
+        const q = this.data[this.currentQuestionIndex];
+
+        // UI Setup
+        document.getElementById('trainer-start-view').classList.add('hidden');
+        document.getElementById('trainer-active-view').classList.remove('hidden');
+        document.getElementById('phase-verification').classList.add('hidden');
+        document.getElementById('phase-remarks').classList.add('hidden');
+        
+        // Hide/Blur Content
+        const qDisplay = document.getElementById('question-display');
+        const aDisplay = document.getElementById('answer-display');
+        qDisplay.innerText = q.question;
+        aDisplay.innerText = q.answer;
+        qDisplay.classList.add('blur-content');
+        aDisplay.classList.add('blur-content');
+        
+        // Timer Reset
+        document.getElementById('timer').innerText = "40";
+        document.getElementById('timer').style.color = "var(--text)";
+
+        // 1. Speak Logic
+        const textToSpeak = `Here's the question: ${q.question}. Again, ${q.question}. Go!`;
+        this.speak(textToSpeak, () => {
+            // Callback when speaking is done
+            this.runTimer();
+        });
+    },
+
+    runTimer() {
+        let timeLeft = 40;
+        const timerEl = document.getElementById('timer');
+        
+        // Cancel any existing timer
+        if(this.timerInterval) clearInterval(this.timerInterval);
+
+        this.timerInterval = setInterval(() => {
+            timeLeft--;
+            timerEl.innerText = timeLeft;
+
+            if (timeLeft <= 10) timerEl.style.color = "var(--danger)";
+
+            if (timeLeft <= 0) {
+                clearInterval(this.timerInterval);
+                this.timeIsUp();
+            }
+        }, 1000);
+    },
+
+    timeIsUp() {
+        // 1. Play Ding
+        this.playDing();
+
+        const q = this.data[this.currentQuestionIndex];
+        
+        // 2. Speak Answer
+        const answerText = `Time's up! The answer is ${q.answer}`;
+        this.speak(answerText, () => {
+            // 3. Reveal UI after speaking answer
+            document.getElementById('question-display').classList.remove('blur-content');
+            document.getElementById('answer-display').classList.remove('blur-content');
+            document.getElementById('phase-verification').classList.remove('hidden');
+        });
+    },
+
+    handleResult(result) {
+        this.data[this.currentQuestionIndex].result = result;
+        document.getElementById('phase-verification').classList.add('hidden');
+        
+        // Pre-fill remarks if needed or clear
+        document.getElementById('remarksInput').value = this.data[this.currentQuestionIndex].remarks;
+        document.getElementById('phase-remarks').classList.remove('hidden');
+    },
+
+    saveAndNext() {
+        const remarks = document.getElementById('remarksInput').value;
+        
+        // Update Data
+        this.data[this.currentQuestionIndex].remarks = remarks;
+        this.data[this.currentQuestionIndex].asked = true;
+
+        // Reset UI for next loop
+        document.getElementById('trainer-active-view').classList.add('hidden');
+        document.getElementById('trainer-start-view').classList.remove('hidden');
+        
+        // Update Stats silently
+        this.updateStats();
+    },
+
+    // --- Audio Logic ---
+    populateVoices() {
+        this.voices = this.synth.getVoices().sort((a, b) => {
+            const aname = a.name.toUpperCase();
+            const bname = b.name.toUpperCase();
+            if (aname < bname) return -1;
+            else if (aname == bname) return 0;
+            return +1;
+        });
+
+        const voiceSelect = document.getElementById('voiceSelect');
+        voiceSelect.innerHTML = '';
+        
+        // Filter for English primarily, but include others
+        this.voices.forEach((voice, index) => {
+            if(voice.lang.includes('en')) {
+                const option = document.createElement('option');
+                option.textContent = `${voice.name} (${voice.lang})`;
+                option.setAttribute('data-lang', voice.lang);
+                option.setAttribute('data-name', voice.name);
+                option.value = index;
+                voiceSelect.appendChild(option);
+            }
+        });
+
+        // UPDATED: Attempt to set default voice to "Microsoft Mark"
+        const markIndex = this.voices.findIndex(v => 
+            v.name.includes("Microsoft Mark") || 
+            (v.name.includes("Mark") && v.lang.includes("en"))
+        );
+
+        if (markIndex > -1) {
+            voiceSelect.value = markIndex;
+        }
+    },
+
+    speak(text, onEndCallback) {
+        if (this.synth.speaking) {
+            this.synth.cancel();
+        }
+
+        const utterThis = new SpeechSynthesisUtterance(text);
+        
+        // Settings
+        const rate = document.getElementById('rateRange').value;
+        const vol = document.getElementById('volRange').value;
+        const isRandom = document.getElementById('randomVoice').checked;
+        const voiceSelect = document.getElementById('voiceSelect');
+
+        utterThis.rate = parseFloat(rate);
+        utterThis.volume = parseFloat(vol);
+        utterThis.pitch = 1;
+
+        if (isRandom && this.voices.length > 0) {
+            // Pick a random English voice if possible
+            const enVoices = this.voices.filter(v => v.lang.includes('en'));
+            utterThis.voice = enVoices[Math.floor(Math.random() * enVoices.length)];
+        } else if (this.voices.length > 0) {
+             utterThis.voice = this.voices[voiceSelect.value];
+        }
+
+        utterThis.onend = function (event) {
+            if(onEndCallback) onEndCallback();
+        };
+
+        utterThis.onerror = function (event) {
+            console.error('SpeechSynthesisUtterance.onerror');
+            // If error, proceed anyway so app doesn't hang
+            if(onEndCallback) onEndCallback();
+        }
+
+        this.synth.speak(utterThis);
+    },
+
+    playDing() {
+        if (!this.audioCtx) return;
+
+        const oscillator = this.audioCtx.createOscillator();
+        const gainNode = this.audioCtx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioCtx.destination);
+
+        // Bell sound synthesis (High Sine wave with decay)
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, this.audioCtx.currentTime); // A5
+        oscillator.frequency.exponentialRampToValueAtTime(440, this.audioCtx.currentTime + 0.1);
+
+        gainNode.gain.setValueAtTime(0.5, this.audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 1.5);
+
+        oscillator.start();
+        oscillator.stop(this.audioCtx.currentTime + 1.5);
+    },
+
+    // --- Stats & History Logic ---
+    updateStats() {
+        const total = this.data.length;
+        const answered = this.data.filter(q => q.asked).length;
+        const correct = this.data.filter(q => q.result === 'CORRECT').length;
+        const pending = total - answered;
+        const accuracy = answered > 0 ? Math.round((correct / answered) * 100) : 0;
+
+        document.getElementById('stat-total').innerText = total;
+        document.getElementById('stat-answered').innerText = answered;
+        document.getElementById('stat-accuracy').innerText = accuracy + '%';
+        document.getElementById('stat-pending').innerText = pending;
+
+        // Update Table
+        const tbody = document.querySelector('#historyTable tbody');
+        tbody.innerHTML = '';
+
+        // Show only asked questions or all? Let's show all but highlight asked
+        // Prompt says "History table showing all questions that have been Asked"
+        const historyData = this.data.filter(q => q.asked);
+
+        historyData.forEach((q) => {
+            const tr = document.createElement('tr');
+            
+            // Determine result class
+            const resultClass = q.result === 'CORRECT' ? 'status-correct' : (q.result === 'INCORRECT' ? 'status-incorrect' : '');
+
+            tr.innerHTML = `
+                <td>${q.id}</td>
+                <td>${q.question}</td>
+                <td>${q.answer}</td>
+                <td class="${resultClass}">${q.result}</td>
+                <td><input type="text" value="${q.remarks}" onchange="app.updateRemark('${q.id}', this.value)" style="border:none; background:transparent; border-bottom:1px solid #ddd; width:100%;"></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Update Export Textarea
+        document.getElementById('csvExport').value = this.generateCSV();
+    },
+
+    updateRemark(id, newVal) {
+        const idx = this.data.findIndex(q => q.id == id);
+        if (idx > -1) {
+            this.data[idx].remarks = newVal;
+            document.getElementById('csvExport').value = this.generateCSV();
+        }
+    }
+};
+
+// Start
+app.init();
+
+</script>
+</body>
+</html>
